@@ -85,12 +85,22 @@ export async function upsertStickerStatus(userId, stickerCode, duplicateCount, w
 }
 
 export async function getAllInventories() {
-  const { data, error } = await supabase
-    .from('sticker_inventory')
-    .select('*, users(name)')
-    .limit(10000)  // override default 1000-row cap
-  if (error) throw error
-  return data
+  // Fetch all rows in pages of 1000 (Supabase server cap per request)
+  const PAGE = 1000
+  let all = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('sticker_inventory')
+      .select('*, users(name)')
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    all = all.concat(data)
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  return all
 }
 
 // ── Match helpers ─────────────────────────────────────────────────────────────
