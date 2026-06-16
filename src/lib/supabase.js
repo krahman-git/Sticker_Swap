@@ -88,6 +88,7 @@ export async function getAllInventories() {
   const { data, error } = await supabase
     .from('sticker_inventory')
     .select('*, users(name)')
+    .limit(10000)  // override default 1000-row cap
   if (error) throw error
   return data
 }
