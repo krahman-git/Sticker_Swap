@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useUser } from '../App'
-import TEAMS, { INTRO_STICKERS } from '../data/stickers'
+import TEAMS, { INTRO_STICKERS, COCA_COLA_STICKERS, TOTAL_STICKERS } from '../data/stickers'
 import { getUserInventory, upsertStickerStatus } from '../lib/supabase'
 
 // Sticker state cycle: 0=neutral, -1=want, 1=1 spare, 2=2 spare, 3=3 spare+
@@ -116,13 +116,13 @@ export default function AlbumView() {
   }, [user.id])
 
   // Build team list for dropdown
-  const teamOptions = ['ALL', 'INTRO', ...TEAMS.map(t => t.code)]
+  const teamOptions = ['ALL', 'INTRO', ...TEAMS.map(t => t.code), 'CC']
 
   // Build sticker list to show
   let allStickerGroups = []
   if (selectedTeam === 'ALL' || selectedTeam === 'INTRO') {
     allStickerGroups.push({
-      label: 'Intro / Special',
+      label: 'Intro / WC History',
       code: 'INTRO',
       stickers: INTRO_STICKERS.map(s => ({ code: s.code, name: s.name, foil: s.foil }))
     })
@@ -140,6 +140,13 @@ export default function AlbumView() {
         }))
       })
     }
+  }
+  if (selectedTeam === 'ALL' || selectedTeam === 'CC') {
+    allStickerGroups.push({
+      label: 'Coca Cola',
+      code: 'CC',
+      stickers: COCA_COLA_STICKERS.map(s => ({ code: s.code, name: s.name }))
+    })
   }
 
   // Apply filter and search
@@ -178,8 +185,8 @@ export default function AlbumView() {
         </div>
         <div className="w-px bg-slate-700" />
         <div className="flex-1 text-center">
-          <div className="text-2xl font-bold text-white">{980 - stats.wants}</div>
-          <div className="text-xs text-slate-400">/ 980 total</div>
+          <div className="text-2xl font-bold text-white">{TOTAL_STICKERS - stats.wants}</div>
+          <div className="text-xs text-slate-400">/ {TOTAL_STICKERS} total</div>
         </div>
       </div>
 
@@ -204,7 +211,7 @@ export default function AlbumView() {
             const team = TEAMS.find(t => t.code === code)
             return (
               <option key={code} value={code}>
-                {code === 'ALL' ? 'All Teams' : code === 'INTRO' ? 'Intro / Special' : `${team?.name} (${code})`}
+                {code === 'ALL' ? 'All Teams' : code === 'INTRO' ? 'Intro / WC History' : code === 'CC' ? 'Coca Cola' : `${team?.name} (${code})`}
               </option>
             )
           })}

@@ -1,17 +1,48 @@
 // Panini FIFA World Cup 2026 - Complete Sticker Checklist
-// 980 stickers: 8 intro (FWC) + 48 teams × 20 stickers each + 12 FIFA Museum
+// 992 stickers: 20 intro/history (FWC) + 48 teams × 20 + 12 Coca Cola (CC)
 
 export const INTRO_STICKERS = [
-  { code: "00",   name: "Panini Logo",                    foil: true  },
-  { code: "FWC1", name: "Official Emblem",                foil: true  },
-  { code: "FWC2", name: "Official Emblem (alt)",          foil: true  },
-  { code: "FWC3", name: "Official Mascots",               foil: true  },
-  { code: "FWC4", name: "Official Slogan",                foil: true  },
-  { code: "FWC5", name: "Official Ball",                  foil: true  },
-  { code: "FWC6", name: "Canada - Host Countries & Cities", foil: true },
-  { code: "FWC7", name: "Mexico - Host Countries & Cities", foil: true },
-  { code: "FWC8", name: "USA - Host Countries & Cities",  foil: true  },
+  { code: "00",    name: "Panini Logo",                      foil: true },
+  { code: "FWC1",  name: "Official Emblem",                  foil: true },
+  { code: "FWC2",  name: "Official Emblem (alt)",            foil: true },
+  { code: "FWC3",  name: "Official Mascots",                 foil: true },
+  { code: "FWC4",  name: "Official Slogan",                  foil: true },
+  { code: "FWC5",  name: "Official Ball",                    foil: true },
+  { code: "FWC6",  name: "Canada - Host Countries & Cities", foil: true },
+  { code: "FWC7",  name: "Mexico - Host Countries & Cities", foil: true },
+  { code: "FWC8",  name: "USA - Host Countries & Cities",    foil: true },
+  // FIFA World Cup History section
+  { code: "FWC9",  name: "WC History 9"  },
+  { code: "FWC10", name: "WC History 10" },
+  { code: "FWC11", name: "WC History 11" },
+  { code: "FWC12", name: "WC History 12" },
+  { code: "FWC13", name: "WC History 13" },
+  { code: "FWC14", name: "WC History 14" },
+  { code: "FWC15", name: "WC History 15" },
+  { code: "FWC16", name: "WC History 16" },
+  { code: "FWC17", name: "WC History 17" },
+  { code: "FWC18", name: "WC History 18" },
+  { code: "FWC19", name: "WC History 19" },
 ];
+
+// Coca Cola sponsor section
+export const COCA_COLA_STICKERS = [
+  { code: "CC1",  name: "Coca Cola 1"  },
+  { code: "CC2",  name: "Coca Cola 2"  },
+  { code: "CC3",  name: "Coca Cola 3"  },
+  { code: "CC4",  name: "Coca Cola 4"  },
+  { code: "CC5",  name: "Coca Cola 5"  },
+  { code: "CC6",  name: "Coca Cola 6"  },
+  { code: "CC7",  name: "Coca Cola 7"  },
+  { code: "CC8",  name: "Coca Cola 8"  },
+  { code: "CC9",  name: "Coca Cola 9"  },
+  { code: "CC10", name: "Coca Cola 10" },
+  { code: "CC11", name: "Coca Cola 11" },
+  { code: "CC12", name: "Coca Cola 12" },
+];
+
+// Total sticker count (used in stats bar)
+export const TOTAL_STICKERS = 992;
 
 // Each team: 20 stickers
 // Position 1 = Team Logo (FOIL), Position 13 = Team Photo, rest = players
@@ -1223,7 +1254,11 @@ export const TEAMS = [
 export const STICKER_MAP = {};
 
 INTRO_STICKERS.forEach(s => {
-  STICKER_MAP[s.code] = { ...s, team: "Intro", teamCode: "FWC" };
+  STICKER_MAP[s.code] = { ...s, team: "Intro / History", teamCode: "FWC" };
+});
+
+COCA_COLA_STICKERS.forEach(s => {
+  STICKER_MAP[s.code] = { ...s, team: "Coca Cola", teamCode: "CC" };
 });
 
 TEAMS.forEach(team => {
