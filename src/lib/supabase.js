@@ -103,6 +103,68 @@ export async function getAllInventories() {
   return all
 }
 
+// ── Swap session helpers ──────────────────────────────────────────────────────
+
+export async function createSwapSession(senderId, receiverId, stickerCodes) {
+  const { error } = await supabase
+    .from('swap_sessions')
+    .insert({
+      sender_id: senderId,
+      receiver_id: receiverId,
+      sticker_codes: stickerCodes,
+      status: 'confirmed_sent',
+    })
+  if (error) throw error
+}
+
+export async function getPendingSessions() {
+  const { data, error } = await supabase
+    .from('swap_sessions')
+    .select('*')
+    .eq('status', 'confirmed_sent')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function applySwapSession(session) {
+  const { id, sender_id, receiver_id, sticker_codes } = session
+
+  // 1. Get sender's current inventory for these stickers
+  const { data: senderRows, error: fetchErr } = await supabase
+    .from('sticker_inventory')
+    .select('*')
+    .eq('user_id', sender_id)
+    .in('sticker_code', sticker_codes)
+  if (fetchErr) throw fetchErr
+
+  // 2. Decrement sender's duplicate counts (min 0)
+  for (const row of senderRows) {
+    const newCount = Math.max(0, row.duplicate_count - 1)
+    const { error } = await supabase
+      .from('sticker_inventory')
+      .update({ duplicate_count: newCount, updated_at: new Date().toISOString() })
+      .eq('user_id', sender_id)
+      .eq('sticker_code', row.sticker_code)
+    if (error) throw error
+  }
+
+  // 3. Clear receiver's wants for these stickers
+  const { error: wantsErr } = await supabase
+    .from('sticker_inventory')
+    .update({ wants: false, updated_at: new Date().toISOString() })
+    .eq('user_id', receiver_id)
+    .in('sticker_code', sticker_codes)
+  if (wantsErr) throw wantsErr
+
+  // 4. Mark session as applied
+  const { error: sessionErr } = await supabase
+    .from('swap_sessions')
+    .update({ status: 'applied', applied_at: new Date().toISOString() })
+    .eq('id', id)
+  if (sessionErr) throw sessionErr
+}
+
 // ── Match helpers ─────────────────────────────────────────────────────────────
 
 /**

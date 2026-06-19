@@ -7,6 +7,8 @@ import Matches from './components/Matches'
 import Manifest from './components/Manifest'
 import Profile from './components/Profile'
 import Search from './components/Search'
+import Pack from './components/Pack'
+import Admin from './components/Admin'
 
 // ── User Context ──────────────────────────────────────────────────────────────
 export const UserContext = createContext(null)
@@ -109,6 +111,7 @@ function Nav({ user, onSwitch }) {
           <NavLink to="/search" className={navClass}>Search</NavLink>
           <NavLink to="/board" className={navClass}>Board</NavLink>
           <NavLink to="/matches" className={navClass}>Matches</NavLink>
+          <NavLink to="/pack" className={navClass}>Pack</NavLink>
           <NavLink to="/manifest" className={navClass}>Manifest</NavLink>
           <NavLink to="/profile" className={navClass}>
             <span className="text-emerald-400">{user.name}</span>
@@ -172,7 +175,9 @@ export default function App() {
               <Route path="/search" element={<Search />} />
               <Route path="/board" element={<SwapBoard />} />
               <Route path="/matches" element={<Matches />} />
+              <Route path="/pack" element={<Pack />} />
               <Route path="/manifest" element={<Manifest />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="/profile" element={<Profile onUserUpdate={handleUserUpdate} />} />
             </Routes>
           </main>
