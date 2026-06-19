@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { sortByAlbumOrder } from '../data/stickers'
 
 // These values come from your Supabase project settings -> API
 // They are safe to expose in client-side code (Row Level Security handles auth)
@@ -192,7 +193,7 @@ export function computeMatches(allInventories, currentUserId, allUsers) {
       const giverDupes = byUser[giverId]?.dupes || {}
       const receiverWants = byUser[receiverId]?.wants || new Set()
 
-      const canSend = Object.keys(giverDupes).filter(code => receiverWants.has(code))
+      const canSend = sortByAlbumOrder(Object.keys(giverDupes).filter(code => receiverWants.has(code)))
       if (canSend.length > 0) {
         matches.push({
           giverId,

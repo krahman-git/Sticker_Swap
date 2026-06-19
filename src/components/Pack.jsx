@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useUser } from '../App'
 import { getAllInventories, createSwapSession } from '../lib/supabase'
-import { STICKER_MAP } from '../data/stickers'
+import { STICKER_MAP, sortByAlbumOrder } from '../data/stickers'
 
 // ── Allocation algorithm ──────────────────────────────────────────────────────
 // For each sticker the sender has as a spare:
@@ -41,6 +41,7 @@ function allocate(allInventories, senderId, receiverIds) {
     }
   }
 
+  for (const id of receiverIds) alloc[id] = sortByAlbumOrder(alloc[id])
   return { alloc, contested }
 }
 

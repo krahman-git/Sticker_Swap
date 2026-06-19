@@ -1268,6 +1268,16 @@ TEAMS.forEach(team => {
   });
 });
 
+// Album-order index for sorting sticker codes
+const STICKER_ORDER = [
+  ...INTRO_STICKERS.map(s => s.code),
+  ...TEAMS.flatMap(t => t.stickers.map(s => `${t.code}${s.n}`)),
+  ...COCA_COLA_STICKERS.map(s => s.code),
+];
+const ORDER_INDEX = Object.fromEntries(STICKER_ORDER.map((code, i) => [code, i]));
+export const sortByAlbumOrder = (codes) =>
+  [...codes].sort((a, b) => (ORDER_INDEX[a] ?? 9999) - (ORDER_INDEX[b] ?? 9999));
+
 // Get full sticker code from team code + number
 export const getStickerCode = (teamCode, n) => `${teamCode}${n}`;
 
