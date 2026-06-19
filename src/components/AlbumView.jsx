@@ -61,7 +61,6 @@ export default function AlbumView() {
   const [saving, setSaving] = useState({})          // code -> bool
   const [selectedTeam, setSelectedTeam] = useState('ALL')
   const [filter, setFilter] = useState('ALL')       // ALL | WANT | HAVE
-  const [search, setSearch] = useState('')
   const [stats, setStats] = useState({ wants: 0, dupes: 0 })
 
   // Queue for debounced saves
@@ -149,14 +148,13 @@ export default function AlbumView() {
     })
   }
 
-  // Apply filter and search
+  // Apply filter
   allStickerGroups = allStickerGroups.map(group => ({
     ...group,
     stickers: group.stickers.filter(s => {
       const st = states[s.code] ?? 0
       if (filter === 'WANT' && st !== -1) return false
       if (filter === 'HAVE' && st < 1) return false
-      if (search && !s.name.toLowerCase().includes(search.toLowerCase()) && !s.code.toLowerCase().includes(search.toLowerCase())) return false
       return true
     })
   })).filter(g => g.stickers.length > 0)
@@ -232,14 +230,6 @@ export default function AlbumView() {
           </button>
         ))}
 
-        {/* Search */}
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search player..."
-          className="bg-slate-700 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 focus:outline-none focus:border-emerald-500 flex-1 min-w-32"
-        />
       </div>
 
       {/* Sticker groups */}

@@ -6,6 +6,7 @@ import SwapBoard from './components/SwapBoard'
 import Matches from './components/Matches'
 import Manifest from './components/Manifest'
 import Profile from './components/Profile'
+import Search from './components/Search'
 
 // ── User Context ──────────────────────────────────────────────────────────────
 export const UserContext = createContext(null)
@@ -105,6 +106,7 @@ function Nav({ user, onSwitch }) {
         <span className="text-white font-semibold text-sm">⚽ Sticker Swap</span>
         <div className="flex gap-1 overflow-x-auto">
           <NavLink to="/album" className={navClass}>My Album</NavLink>
+          <NavLink to="/search" className={navClass}>Search</NavLink>
           <NavLink to="/board" className={navClass}>Board</NavLink>
           <NavLink to="/matches" className={navClass}>Matches</NavLink>
           <NavLink to="/manifest" className={navClass}>Manifest</NavLink>
@@ -167,6 +169,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/album" replace />} />
               <Route path="/album" element={<AlbumView />} />
+              <Route path="/search" element={<Search />} />
               <Route path="/board" element={<SwapBoard />} />
               <Route path="/matches" element={<Matches />} />
               <Route path="/manifest" element={<Manifest />} />
