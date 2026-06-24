@@ -14,14 +14,16 @@ import Admin from './components/Admin'
 export const UserContext = createContext(null)
 export const useUser = () => useContext(UserContext)
 
-// Known members — add more by just having them type their name
-const KNOWN_MEMBERS = ['Kazi', 'EeWah', 'Elaine', 'Abby', 'Hao']
-
 // ── Name Picker ───────────────────────────────────────────────────────────────
 function NamePicker({ onSelect }) {
+  const [members, setMembers] = useState([])
   const [custom, setCustom] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    getAllUsers().then(users => setMembers(users.map(u => u.name))).catch(console.error)
+  }, [])
 
   async function handleSelect(name) {
     const trimmed = name.trim()
@@ -49,9 +51,9 @@ function NamePicker({ onSelect }) {
           <p className="text-slate-400">Sticker Swap — who are you?</p>
         </div>
 
-        {/* Known members */}
+        {/* Members from DB */}
         <div className="grid grid-cols-2 gap-3 mb-6">
-          {KNOWN_MEMBERS.map(name => (
+          {members.map(name => (
             <button
               key={name}
               onClick={() => handleSelect(name)}
