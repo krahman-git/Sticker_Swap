@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useUser } from '../App'
-import { getPendingSessions, applySwapSession } from '../lib/supabase'
+import { getPendingSessions, applySwapSession, deleteSwapSession } from '../lib/supabase'
 import { STICKER_MAP } from '../data/stickers'
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD
@@ -60,10 +60,12 @@ function PasswordGate({ onAuth }) {
 
 // ── Session card ──────────────────────────────────────────────────────────────
 
-function SessionCard({ session, userMap, onApply }) {
+function SessionCard({ session, userMap, onApply, onDelete }) {
   const [expanded, setExpanded]   = useState(false)
   const [applying, setApplying]   = useState(false)
   const [applied, setApplied]     = useState(false)
+  const [deleting, setDeleting]   = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError]         = useState(null)
 
   const senderName   = userMap[session.sender_id]   ?? 'Unknown'
@@ -72,6 +74,19 @@ function SessionCard({ session, userMap, onApply }) {
   const when         = new Date(session.created_at).toLocaleString(undefined, {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   })
+
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      await deleteSwapSession(session.id)
+      onDelete(session.id)
+    } catch (e) {
+      console.error(e)
+      setError('Delete failed — try again.')
+      setDeleting(false)
+      setConfirmDelete(false)
+    }
+  }
 
   async function handleApply() {
     setApplying(true)
@@ -114,17 +129,43 @@ function SessionCard({ session, userMap, onApply }) {
           {expanded ? '▲' : '▼'}
         </button>
 
-        {/* Apply / applied */}
+        {/* Apply / applied / delete */}
         {applied ? (
           <span className="text-emerald-400 text-sm font-medium shrink-0">✓ Applied</span>
+        ) : confirmDelete ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-slate-400 text-xs">Sure?</span>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+            >
+              {deleting ? '…' : 'Yes, delete'}
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="text-slate-400 hover:text-white text-xs px-2 py-2 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
         ) : (
-          <button
-            onClick={handleApply}
-            disabled={applying}
-            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
-          >
-            {applying ? 'Applying…' : 'Apply'}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-slate-500 hover:text-red-400 text-sm px-2 py-2 transition-colors"
+              title="Delete session"
+            >
+              🗑
+            </button>
+            <button
+              onClick={handleApply}
+              disabled={applying}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              {applying ? 'Applying…' : 'Apply'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -227,6 +268,7 @@ export default function Admin() {
               session={session}
               userMap={userMap}
               onApply={handleSessionApplied}
+              onDelete={handleSessionApplied}
             />
           ))}
         </div>

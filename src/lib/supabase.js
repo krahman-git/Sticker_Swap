@@ -128,6 +128,14 @@ export async function getPendingSessions() {
   return data
 }
 
+export async function deleteSwapSession(id) {
+  const { error } = await supabase
+    .from('swap_sessions')
+    .delete()
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function applySwapSession(session) {
   const { id, sender_id, receiver_id, sticker_codes } = session
 
