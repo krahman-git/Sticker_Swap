@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { getAllInventories, getAllUsers } from '../lib/supabase'
 
 const TOTAL = 992
+const EXCLUDED_NAMES = ['hao', 'michelle']
 
 const RANK_META = [
   { emoji: '🥇', label: 'Gold',   color: '#f59e0b', glow: '#f59e0b33', border: '#f59e0b55', bg: 'linear-gradient(135deg, #1e293b 0%, #1a2d1a 100%)' },
@@ -40,6 +41,7 @@ export default function LeaderboardTab() {
 
       // collected = 992 - wants_count (stickers not marked as want)
       const ranked = users
+        .filter(u => !EXCLUDED_NAMES.includes(u.name.toLowerCase()))
         .map(u => ({
           id: u.id,
           name: u.name,
