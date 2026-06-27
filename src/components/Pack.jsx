@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useUser } from '../App'
-import { getAllInventories, createSwapSession } from '../lib/supabase'
+import { getAllInventories, createSwapSession, computeMatches } from '../lib/supabase'
 import { STICKER_MAP, sortByAlbumOrder } from '../data/stickers'
 
 // ── Allocation algorithm ──────────────────────────────────────────────────────
@@ -43,6 +43,128 @@ function allocate(allInventories, senderId, receiverIds) {
 
   for (const id of receiverIds) alloc[id] = sortByAlbumOrder(alloc[id])
   return { alloc, contested }
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+// ── Manifest section ──────────────────────────────────────────────────────────
+
+function ManifestSection({ inventories, allUsers, currentUser }) {
+  const [filterUser, setFilterUser] = useState(currentUser.id)
+  const [open, setOpen] = useState(false)
+
+  const allMatches = computeMatches(inventories, currentUser.id, allUsers)
+  const byGiver = {}
+  for (const m of allMatches) {
+    if (!byGiver[m.giverId]) byGiver[m.giverId] = { name: m.giverName, sends: [] }
+    byGiver[m.giverId].sends.push({ receiverId: m.receiverId, receiverName: m.receiverName, stickers: m.stickers })
+  }
+  const addressMap = {}
+  for (const u of allUsers) addressMap[u.id] = u.address
+
+  const giverList = Object.entries(byGiver)
+    .filter(([id]) => filterUser === 'ALL' || id === filterUser)
+    .sort(([, a], [, b]) => a.name.localeCompare(b.name))
+
+  return (
+    <div className="mt-8">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 text-slate-300 hover:text-white text-sm font-medium transition-colors mb-3"
+      >
+        <span className={`transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+        📋 Shipping Manifest
+      </button>
+
+      {open && (
+        <div>
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <p className="text-slate-400 text-sm">Who sends what to whom — with addresses.</p>
+            <div className="flex gap-2">
+              <select
+                value={filterUser}
+                onChange={e => setFilterUser(e.target.value)}
+                className="bg-slate-700 text-white text-sm rounded-lg px-3 py-2 border border-slate-600 focus:outline-none"
+              >
+                <option value="ALL">Everyone</option>
+                {allUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.name === currentUser.name ? `${u.name} (me)` : u.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => window.print()}
+                className="bg-slate-700 hover:bg-slate-600 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+              >
+                🖨️ Print
+              </button>
+            </div>
+          </div>
+
+          {giverList.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">
+              <div className="text-4xl mb-3">📭</div>
+              <p>No swap matches found.</p>
+            </div>
+          ) : (
+            <div className="space-y-6 print:text-black print:bg-white">
+              {giverList.map(([giverId, { name: giverName, sends }]) => (
+                <div key={giverId} className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden print:border-gray-300 print:rounded-none">
+                  <div className="bg-slate-700 px-5 py-3 print:bg-gray-100">
+                    <h2 className="text-white font-bold text-base print:text-black">📤 Sender: {giverName}</h2>
+                    {addressMap[giverId] && (
+                      <p className="text-slate-300 text-sm mt-0.5 print:text-gray-600">Return address: {addressMap[giverId]}</p>
+                    )}
+                  </div>
+                  <div className="p-5 space-y-5">
+                    {sends.map((send, i) => (
+                      <div key={i} className="border-l-2 border-blue-600 pl-4">
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div>
+                            <h3 className="text-blue-300 font-semibold print:text-blue-700">→ To: {send.receiverName}</h3>
+                            {addressMap[send.receiverId] ? (
+                              <p className="text-slate-300 text-sm mt-0.5 print:text-gray-600">📬 {addressMap[send.receiverId]}</p>
+                            ) : (
+                              <p className="text-yellow-500 text-sm mt-0.5">⚠️ No address — ask {send.receiverName} to add it in Profile.</p>
+                            )}
+                          </div>
+                          <span className="bg-slate-700 text-slate-300 text-sm px-3 py-1 rounded-full whitespace-nowrap print:bg-gray-200 print:text-gray-700">
+                            {send.stickers.length} sticker{send.stickers.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="bg-slate-900 rounded-lg p-3 print:bg-gray-50 print:border print:border-gray-200">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-slate-400 print:text-gray-500">
+                                <th className="text-left font-medium pr-4 py-0.5">Code</th>
+                                <th className="text-left font-medium pr-4 py-0.5">Player</th>
+                                <th className="text-left font-medium py-0.5">Team</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {send.stickers.map(code => {
+                                const info = STICKER_MAP[code]
+                                return (
+                                  <tr key={code} className="border-t border-slate-800 print:border-gray-100">
+                                    <td className="font-mono text-emerald-300 pr-4 py-0.5 print:text-green-700">{code}</td>
+                                    <td className="text-white pr-4 py-0.5 print:text-black">{info?.name || '—'}</td>
+                                    <td className="text-slate-400 py-0.5 print:text-gray-500">{info?.team || '—'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -176,7 +298,7 @@ export default function Pack() {
       )}
 
       {/* Per-receiver sections */}
-      <div className="space-y-4">
+      <div className="space-y-4 mb-6">
         {selectedReceivers.map(receiverId => {
           const receiver   = allUsers.find(u => u.id === receiverId)
           const stickers   = alloc[receiverId] ?? []
@@ -255,6 +377,10 @@ export default function Pack() {
           )
         })}
       </div>
+
+      {!loading && (
+        <ManifestSection inventories={inventories} allUsers={allUsers} currentUser={user} />
+      )}
     </div>
   )
 }

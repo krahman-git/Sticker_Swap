@@ -4,7 +4,7 @@ import { getOrCreateUser, getAllUsers } from './lib/supabase'
 import AlbumView from './components/AlbumView'
 import SwapBoard from './components/SwapBoard'
 import Matches from './components/Matches'
-import Manifest from './components/Manifest'
+import LeaderboardTab from './components/LeaderboardTab'
 import Profile from './components/Profile'
 import Search from './components/Search'
 import Pack from './components/Pack'
@@ -114,7 +114,7 @@ function Nav({ user, onSwitch }) {
           <NavLink to="/board" className={navClass}>Board</NavLink>
           <NavLink to="/matches" className={navClass}>Matches</NavLink>
           <NavLink to="/pack" className={navClass}>Pack</NavLink>
-          <NavLink to="/manifest" className={navClass}>Manifest</NavLink>
+          <NavLink to="/leaderboard" className={navClass}>Leaderboard</NavLink>
           <NavLink to="/profile" className={navClass}>
             <span className="text-emerald-400">{user.name}</span>
           </NavLink>
@@ -178,7 +178,7 @@ export default function App() {
               <Route path="/board" element={<SwapBoard />} />
               <Route path="/matches" element={<Matches />} />
               <Route path="/pack" element={<Pack />} />
-              <Route path="/manifest" element={<Manifest />} />
+              <Route path="/leaderboard" element={<LeaderboardTab />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/profile" element={<Profile onUserUpdate={handleUserUpdate} />} />
             </Routes>
