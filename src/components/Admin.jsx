@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useUser } from '../App'
-import { getPendingSessions, applySwapSession, deleteSwapSession } from '../lib/supabase'
+import { getPendingSessions, applySwapSession, deleteSwapSession, getAppliedSessions, revertSwapSession } from '../lib/supabase'
 import { STICKER_MAP } from '../data/stickers'
 
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD
@@ -199,21 +199,140 @@ function SessionCard({ session, userMap, onApply, onDelete }) {
   )
 }
 
+// ── History card (applied sessions with revert) ───────────────────────────────
+
+function HistoryCard({ session, userMap, onReverted }) {
+  const [expanded, setExpanded]   = useState(false)
+  const [confirm, setConfirm]     = useState(false)
+  const [reverting, setReverting] = useState(false)
+  const [reverted, setReverted]   = useState(false)
+  const [error, setError]         = useState(null)
+
+  const senderName   = userMap[session.sender_id]   ?? 'Unknown'
+  const receiverName = userMap[session.receiver_id] ?? 'Unknown'
+  const codes        = session.sticker_codes ?? []
+  const when = new Date(session.applied_at ?? session.created_at).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  })
+
+  async function handleRevert() {
+    setReverting(true)
+    setError(null)
+    try {
+      await revertSwapSession(session)
+      setReverted(true)
+      setTimeout(() => onReverted(session.id), 1200)
+    } catch (e) {
+      console.error(e)
+      setError('Revert failed — check console.')
+    } finally {
+      setReverting(false)
+      setConfirm(false)
+    }
+  }
+
+  return (
+    <div className={`bg-slate-800 border rounded-xl overflow-hidden transition-colors ${
+      reverted ? 'border-amber-700' : 'border-slate-700'
+    }`}>
+      <div className="px-4 py-3 flex items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-white font-medium">
+            <span className="text-emerald-400">{senderName}</span>
+            <span className="text-slate-400 mx-2">→</span>
+            <span className="text-blue-400">{receiverName}</span>
+            <span className="text-slate-400 ml-2 font-normal text-sm">
+              · {codes.length} sticker{codes.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div className="text-slate-500 text-xs mt-0.5">Applied {when}</div>
+        </div>
+
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="text-slate-400 hover:text-white text-sm px-2 shrink-0"
+        >
+          {expanded ? '▲' : '▼'}
+        </button>
+
+        {reverted ? (
+          <span className="text-amber-400 text-sm font-medium shrink-0">↩ Reverted</span>
+        ) : confirm ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-slate-400 text-xs">Undo this?</span>
+            <button
+              onClick={handleRevert}
+              disabled={reverting}
+              className="bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+            >
+              {reverting ? '…' : 'Yes, revert'}
+            </button>
+            <button
+              onClick={() => setConfirm(false)}
+              className="text-slate-400 hover:text-white text-xs px-2 py-2 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirm(true)}
+            className="bg-slate-700 hover:bg-amber-700 text-slate-300 hover:text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
+          >
+            ↩ Revert
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="px-4 pb-3">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+
+      {expanded && (
+        <div className="border-t border-slate-700 px-4 py-3">
+          <div className="space-y-1">
+            {codes.map(code => {
+              const info = STICKER_MAP[code]
+              return (
+                <div key={code} className="flex items-center gap-3 py-0.5">
+                  <span className="font-mono text-xs text-emerald-400 bg-slate-900 rounded px-2 py-0.5 min-w-[56px] text-center shrink-0">
+                    {code}
+                  </span>
+                  <span className="text-white text-sm flex-1 truncate">{info?.name ?? '—'}</span>
+                  <span className="text-slate-500 text-xs shrink-0">{info?.team ?? '—'}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Admin() {
-  const { allUsers }  = useUser()
-  const [authed, setAuthed]     = useState(() => sessionStorage.getItem('adminAuth') === 'true')
-  const [sessions, setSessions] = useState([])
-  const [loading, setLoading]   = useState(false)
+  const { allUsers }    = useUser()
+  const [authed, setAuthed]       = useState(() => sessionStorage.getItem('adminAuth') === 'true')
+  const [sessions, setSessions]   = useState([])
+  const [history, setHistory]     = useState([])
+  const [loading, setLoading]     = useState(false)
+  const [historyFilter, setHistoryFilter] = useState('')
+  const [showHistory, setShowHistory]     = useState(false)
 
   const userMap = Object.fromEntries(allUsers.map(u => [u.id, u.name]))
 
   useEffect(() => {
     if (!authed) return
     setLoading(true)
-    getPendingSessions()
-      .then(setSessions)
+    Promise.all([getPendingSessions(), getAppliedSessions()])
+      .then(([pending, applied]) => {
+        setSessions(pending)
+        setHistory(applied)
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [authed])
@@ -222,10 +341,24 @@ export default function Admin() {
     setSessions(prev => prev.filter(s => s.id !== id))
   }
 
+  function handleReverted(id) {
+    setHistory(prev => prev.filter(s => s.id !== id))
+  }
+
   function handleLock() {
     sessionStorage.removeItem('adminAuth')
     setAuthed(false)
   }
+
+  const filteredHistory = historyFilter.trim()
+    ? history.filter(s => {
+        const q = historyFilter.toLowerCase()
+        return (
+          (userMap[s.sender_id]   ?? '').toLowerCase().includes(q) ||
+          (userMap[s.receiver_id] ?? '').toLowerCase().includes(q)
+        )
+      })
+    : history
 
   if (!authed) return <PasswordGate onAuth={() => setAuthed(true)} />
 
@@ -235,9 +368,7 @@ export default function Admin() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-white">Admin — Swap Sessions</h1>
-          <p className="text-slate-400 text-sm">
-            Apply confirmed sends to update everyone's albums.
-          </p>
+          <p className="text-slate-400 text-sm">Apply confirmed sends or revert past ones.</p>
         </div>
         <button
           onClick={handleLock}
@@ -252,26 +383,72 @@ export default function Admin() {
           <div className="text-4xl mb-4 animate-spin">⚽</div>
           Loading sessions…
         </div>
-      ) : sessions.length === 0 ? (
-        <div className="text-center py-16 text-slate-500">
-          <div className="text-5xl mb-3">✅</div>
-          <p>No pending sessions — all caught up!</p>
-        </div>
       ) : (
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500 mb-1">
-            {sessions.length} pending session{sessions.length !== 1 ? 's' : ''}
-          </p>
-          {sessions.map(session => (
-            <SessionCard
-              key={session.id}
-              session={session}
-              userMap={userMap}
-              onApply={handleSessionApplied}
-              onDelete={handleSessionApplied}
-            />
-          ))}
-        </div>
+        <>
+          {/* ── Pending ── */}
+          <div className="mb-8">
+            <p className="text-xs text-slate-500 font-medium uppercase tracking-wide mb-3">
+              Pending · {sessions.length}
+            </p>
+            {sessions.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 border border-dashed border-slate-700 rounded-xl">
+                <div className="text-3xl mb-2">✅</div>
+                <p className="text-sm">No pending sessions — all caught up!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sessions.map(session => (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    userMap={userMap}
+                    onApply={handleSessionApplied}
+                    onDelete={handleSessionApplied}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── History ── */}
+          <div>
+            <button
+              onClick={() => setShowHistory(h => !h)}
+              className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium uppercase tracking-wide transition-colors mb-3"
+            >
+              <span className={`transition-transform ${showHistory ? 'rotate-90' : ''}`}>▶</span>
+              History · {history.length} applied
+            </button>
+
+            {showHistory && (
+              <>
+                <input
+                  type="text"
+                  value={historyFilter}
+                  onChange={e => setHistoryFilter(e.target.value)}
+                  placeholder="Filter by name (e.g. EeWah, Kazi)…"
+                  className="w-full bg-slate-800 text-white placeholder-slate-500 border border-slate-600 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500 mb-3"
+                />
+                {filteredHistory.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 text-sm">
+                    No sessions match "{historyFilter}"
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredHistory.map(session => (
+                      <HistoryCard
+                        key={session.id}
+                        session={session}
+                        userMap={userMap}
+                        onReverted={handleReverted}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </>
       )}
     </div>
   )

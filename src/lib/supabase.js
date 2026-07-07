@@ -128,6 +128,72 @@ export async function getPendingSessions() {
   return data
 }
 
+export async function getAppliedSessions() {
+  const { data, error } = await supabase
+    .from('swap_sessions')
+    .select('*')
+    .eq('status', 'applied')
+    .order('applied_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function revertSwapSession(session) {
+  const { id, sender_id, receiver_id, sticker_codes } = session
+
+  // 1. Restore receiver's wants=true for these stickers
+  for (const code of sticker_codes) {
+    const { error } = await supabase
+      .from('sticker_inventory')
+      .upsert(
+        { user_id: receiver_id, sticker_code: code, wants: true, duplicate_count: 0, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,sticker_code' }
+      )
+    if (error) throw error
+  }
+
+  // 2. Restore sender's duplicate counts (+1 each)
+  const { data: senderRows, error: fetchErr } = await supabase
+    .from('sticker_inventory')
+    .select('*')
+    .eq('user_id', sender_id)
+    .in('sticker_code', sticker_codes)
+  if (fetchErr) throw fetchErr
+
+  const existingCodes = new Set(senderRows.map(r => r.sticker_code))
+
+  for (const row of senderRows) {
+    const { error } = await supabase
+      .from('sticker_inventory')
+      .update({ duplicate_count: row.duplicate_count + 1, updated_at: new Date().toISOString() })
+      .eq('user_id', sender_id)
+      .eq('sticker_code', row.sticker_code)
+    if (error) throw error
+  }
+
+  // For stickers with no existing sender row, create one with duplicate_count=1
+  const missing = sticker_codes.filter(c => !existingCodes.has(c))
+  if (missing.length > 0) {
+    const { error } = await supabase
+      .from('sticker_inventory')
+      .insert(missing.map(code => ({
+        user_id: sender_id,
+        sticker_code: code,
+        duplicate_count: 1,
+        wants: false,
+        updated_at: new Date().toISOString(),
+      })))
+    if (error) throw error
+  }
+
+  // 3. Mark session as reverted
+  const { error: sessionErr } = await supabase
+    .from('swap_sessions')
+    .update({ status: 'reverted', applied_at: new Date().toISOString() })
+    .eq('id', id)
+  if (sessionErr) throw sessionErr
+}
+
 export async function deleteSwapSession(id) {
   const { error } = await supabase
     .from('swap_sessions')
