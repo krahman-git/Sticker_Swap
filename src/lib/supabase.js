@@ -132,7 +132,7 @@ export async function getAppliedSessions() {
   const { data, error } = await supabase
     .from('swap_sessions')
     .select('*')
-    .eq('status', 'applied')
+    .in('status', ['applied', 'reverted'])
     .order('applied_at', { ascending: false })
   if (error) throw error
   return data

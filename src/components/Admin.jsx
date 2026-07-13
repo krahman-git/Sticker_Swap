@@ -202,11 +202,13 @@ function SessionCard({ session, userMap, onApply, onDelete }) {
 // ── History card (applied sessions with revert) ───────────────────────────────
 
 function HistoryCard({ session, userMap, onReverted }) {
-  const [expanded, setExpanded]   = useState(false)
-  const [confirm, setConfirm]     = useState(false)
-  const [reverting, setReverting] = useState(false)
-  const [reverted, setReverted]   = useState(false)
-  const [error, setError]         = useState(null)
+  const [expanded, setExpanded]     = useState(false)
+  const [confirm, setConfirm]       = useState(false)
+  const [acting, setActing]         = useState(false)
+  const [localStatus, setLocalStatus] = useState(session.status) // 'applied' | 'reverted'
+  const [error, setError]           = useState(null)
+
+  const isReverted = localStatus === 'reverted'
 
   const senderName   = userMap[session.sender_id]   ?? 'Unknown'
   const receiverName = userMap[session.receiver_id] ?? 'Unknown'
@@ -215,37 +217,55 @@ function HistoryCard({ session, userMap, onReverted }) {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   })
 
-  async function handleRevert() {
-    setReverting(true)
+  async function handleAction() {
+    setActing(true)
     setError(null)
     try {
-      await revertSwapSession(session)
-      setReverted(true)
-      setTimeout(() => onReverted(session.id), 1200)
+      if (isReverted) {
+        // Re-apply: use the existing applySwapSession logic
+        await applySwapSession({ ...session, status: 'reverted' })
+        setLocalStatus('applied')
+      } else {
+        await revertSwapSession(session)
+        setLocalStatus('reverted')
+      }
+      setConfirm(false)
     } catch (e) {
       console.error(e)
-      setError('Revert failed — check console.')
+      setError(`${isReverted ? 'Re-apply' : 'Revert'} failed — check console.`)
     } finally {
-      setReverting(false)
-      setConfirm(false)
+      setActing(false)
     }
   }
 
+  const borderColor = isReverted ? 'border-amber-800' : 'border-slate-700'
+  const actionLabel = isReverted ? '↺ Re-apply' : '↩ Revert'
+  const confirmText = isReverted ? 'Re-apply this?' : 'Undo this?'
+  const confirmBtnClass = isReverted
+    ? 'bg-emerald-600 hover:bg-emerald-500'
+    : 'bg-amber-600 hover:bg-amber-500'
+  const confirmBtnLabel = isReverted
+    ? (acting ? '…' : 'Yes, re-apply')
+    : (acting ? '…' : 'Yes, revert')
+
   return (
-    <div className={`bg-slate-800 border rounded-xl overflow-hidden transition-colors ${
-      reverted ? 'border-amber-700' : 'border-slate-700'
-    }`}>
+    <div className={`bg-slate-800 border rounded-xl overflow-hidden transition-colors ${borderColor}`}>
       <div className="px-4 py-3 flex items-center gap-3">
         <div className="flex-1 min-w-0">
-          <div className="text-white font-medium">
+          <div className="text-white font-medium flex items-center flex-wrap gap-1">
             <span className="text-emerald-400">{senderName}</span>
-            <span className="text-slate-400 mx-2">→</span>
+            <span className="text-slate-400 mx-1">→</span>
             <span className="text-blue-400">{receiverName}</span>
-            <span className="text-slate-400 ml-2 font-normal text-sm">
+            <span className="text-slate-400 font-normal text-sm">
               · {codes.length} sticker{codes.length !== 1 ? 's' : ''}
             </span>
+            {isReverted && (
+              <span className="text-amber-500 text-xs font-medium bg-amber-900/30 px-2 py-0.5 rounded-full">
+                reverted
+              </span>
+            )}
           </div>
-          <div className="text-slate-500 text-xs mt-0.5">Applied {when}</div>
+          <div className="text-slate-500 text-xs mt-0.5">{when}</div>
         </div>
 
         <button
@@ -255,17 +275,15 @@ function HistoryCard({ session, userMap, onReverted }) {
           {expanded ? '▲' : '▼'}
         </button>
 
-        {reverted ? (
-          <span className="text-amber-400 text-sm font-medium shrink-0">↩ Reverted</span>
-        ) : confirm ? (
+        {confirm ? (
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-slate-400 text-xs">Undo this?</span>
+            <span className="text-slate-400 text-xs">{confirmText}</span>
             <button
-              onClick={handleRevert}
-              disabled={reverting}
-              className="bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+              onClick={handleAction}
+              disabled={acting}
+              className={`${confirmBtnClass} disabled:opacity-40 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors`}
             >
-              {reverting ? '…' : 'Yes, revert'}
+              {confirmBtnLabel}
             </button>
             <button
               onClick={() => setConfirm(false)}
@@ -277,9 +295,13 @@ function HistoryCard({ session, userMap, onReverted }) {
         ) : (
           <button
             onClick={() => setConfirm(true)}
-            className="bg-slate-700 hover:bg-amber-700 text-slate-300 hover:text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0"
+            className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors shrink-0 ${
+              isReverted
+                ? 'bg-slate-700 hover:bg-emerald-700 text-slate-300 hover:text-white'
+                : 'bg-slate-700 hover:bg-amber-700 text-slate-300 hover:text-white'
+            }`}
           >
-            ↩ Revert
+            {actionLabel}
           </button>
         )}
       </div>
@@ -417,7 +439,7 @@ export default function Admin() {
               className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-medium uppercase tracking-wide transition-colors mb-3"
             >
               <span className={`transition-transform ${showHistory ? 'rotate-90' : ''}`}>▶</span>
-              History · {history.length} applied
+              History · {history.length} session{history.length !== 1 ? 's' : ''}
             </button>
 
             {showHistory && (
